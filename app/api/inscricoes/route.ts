@@ -15,12 +15,15 @@ export async function GET(request: Request) {
         seminario_id: Number(seminarioId),
       },
       select: {
-        // <--- MUDANÇA AQUI: Selecionando apenas os campos desejados
-        id: true, // Manter o ID para a key do React
+        id: true,
         codigo_uid: true,
         nome_completo: true,
         data_inscricao: true,
         divisao: true,
+        confirmacao_presenca: true,
+      },
+      orderBy: {
+        nome_completo: "asc",
       },
     })
     return NextResponse.json(inscricoes)

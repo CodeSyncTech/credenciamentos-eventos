@@ -12,9 +12,9 @@ datasource db {
 
 model InscricaoSeminario {
   id                     Int       @id @default(autoincrement())
-  codigo_uid             String?   @map("codigo_uid") @db.VarChar(64) @unique // Adicionado @unique para facilitar a busca
+  codigo_uid             String?   @map("codigo_uid") @db.VarChar(64) @unique
   seminario_id           Int?      @map("seminario_id")
-  seminario              Seminario? @relation(fields: [seminario_id], references: [id]) // Relação com Seminario
+  seminario              Seminario? @relation(fields: [seminario_id], references: [id])
   cpf                    String    @map("cpf") @db.VarChar(20)
   email                  String    @db.VarChar(100)
   whatsapp               String?   @db.VarChar(20)
@@ -26,6 +26,7 @@ model InscricaoSeminario {
   divisao                String    @db.VarChar(100)
   servidor_tipo          String?   @map("servidor_tipo") @db.VarChar(100)
   servidor_outros_texto  String?   @map("servidor_outros_texto") @db.VarChar(255)
+  confirmacao_presenca   Boolean   @default(false) @map("confirmacao_presenca") // <-- NOVO CAMPO
 
   @@map("inscricoes_seminario")
 }
@@ -40,17 +41,16 @@ model Seminario {
   estado          String    @db.VarChar(2)
   municipio       String    @db.VarChar(100)
   author_id       Int
-  status          SeminarioStatus? @default(aberto) // Usando Enum para o status
+  status          SeminarioStatus? @default(aberto)
   data_inicio     DateTime? @db.DateTime(0)
   data_fim        DateTime? @db.DateTime(0)
   imagem_temporaria String? @db.VarChar(255)
   vagas_maximas   Int?
-  inscricoes      InscricaoSeminario[] // Relação inversa para InscricaoSeminario
+  inscricoes      InscricaoSeminario[]
 
   @@map("seminarios")
 }
 
-// Definindo o ENUM para o campo 'status'
 enum SeminarioStatus {
   aberto
   em_andamento

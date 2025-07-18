@@ -7,25 +7,18 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { CheckCircleIcon, XCircleIcon, Loader2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CheckCircleIcon, XCircleIcon, Loader2, QrCodeIcon, UserIcon, AlertCircleIcon } from "lucide-react"
 
-// Definição de tipo para a inscrição (ajustada para refletir os campos que serão usados)
+// Definição de tipo para a inscrição
 interface Inscricao {
   id: number
   codigo_uid: string | null
   data_inscricao: string | null
   nome_completo: string
   divisao: string
-  // Outros campos não serão mais usados diretamente na tabela, mas podem existir no objeto completo
-  // seminario_id: number | null;
-  // cpf: string;
-  // email: string;
-  // whatsapp: string | null;
-  // data_nascimento: string | null;
-  // genero: string | null;
-  // codigo_consulta: string | null;
-  // servidor_tipo: string | null;
-  // servidor_outros_texto: string | null;
+  confirmacao_presenca: boolean
 }
 
 // Definição de tipo para o seminário
@@ -42,13 +35,22 @@ interface Seminario {
 export default function CredenciamentoPage() {
   const [seminarios, setSeminarios] = useState<Seminario[]>([])
   const [selectedSeminarId, setSelectedSeminarId] = useState<string | null>(null)
-  const [cpfInput, setCpfInput] = useState<string>("")
-  const [codigoUidInput, setCodigoUidInput] = useState<string>("")
-  const [checkResult, setCheckResult] = useState<"found" | "not_found" | null>(null)
-  const [checkMessage, setCheckMessage] = useState<string | null>(null)
-  const [isChecking, setIsChecking] = useState(false)
 
-  // Este estado agora conterá APENAS as inscrições do seminário selecionado
+  // Estados para QR Code (método principal)
+  const [codigoUidQr, setCodigoUidQr] = useState<string>("")
+  const [qrResult, setQrResult] = useState<"confirmed" | "already_confirmed" | "not_found" | null>(null)
+  const [qrMessage, setQrMessage] = useState<string | null>(null)
+  const [isProcessingQr, setIsProcessingQr] = useState(false)
+
+  // Estados para CPF (método alternativo)
+  const [cpfInput, setCpfInput] = useState<string>("")
+  const [cpfResult, setCpfResult] = useState<"found" | "confirmed" | "already_confirmed" | "not_found" | null>(null)
+  const [cpfMessage, setCpfMessage] = useState<string | null>(null)
+  const [isProcessingCpf, setIsProcessingCpf] = useState(false)
+  const [showCpfConfirmation, setShowCpfConfirmation] = useState(false)
+  const [foundInscricao, setFoundInscricao] = useState<any>(null)
+
+  // Estados para lista de inscrições
   const [seminarInscricoes, setSeminarInscricoes] = useState<Inscricao[]>([])
   const [loadingSeminarInscricoes, setLoadingSeminarInscricoes] = useState(false)
   const [errorSeminarInscricoes, setErrorSeminarInscricoes] = useState<string | null>(null)
@@ -70,21 +72,20 @@ export default function CredenciamentoPage() {
     fetchSeminarios()
   }, [])
 
-  // Efeito para buscar inscrições do seminário selecionado (agora com parâmetro)
+  // Efeito para buscar inscrições do seminário selecionado
   useEffect(() => {
     async function fetchSeminarInscricoes() {
       if (!selectedSeminarId) {
-        setSeminarInscricoes([]) // Limpa a lista se nenhum seminário estiver selecionado
+        setSeminarInscricoes([])
         return
       }
 
       setLoadingSeminarInscricoes(true)
-      setErrorSeminarInscricoes(null) // Limpa erros anteriores
+      setErrorSeminarInscricoes(null)
+
       try {
-        // Faz a requisição para a API com o seminarioId como parâmetro de query
         const response = await fetch(`/api/inscricoes?seminarioId=${selectedSeminarId}`)
         if (!response.ok) {
-          // Se a resposta não for OK, tenta ler a mensagem de erro do backend
           const errorData = await response.json()
           throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
         }
@@ -98,24 +99,95 @@ export default function CredenciamentoPage() {
       }
     }
     fetchSeminarInscricoes()
-  }, [selectedSeminarId]) // Este efeito é re-executado APENAS quando selectedSeminarId muda
+  }, [selectedSeminarId])
 
-  const handleCheckInscricao = async () => {
-    setCheckResult(null)
-    setCheckMessage(null)
-    setIsChecking(true)
+  // Função para confirmar presença via QR Code
+  const handleConfirmarPresencaQr = async () => {
+    setQrResult(null)
+    setQrMessage(null)
+    setIsProcessingQr(true)
 
     if (!selectedSeminarId) {
-      setCheckMessage("Por favor, selecione um seminário.")
-      setCheckResult("not_found")
-      setIsChecking(false)
+      setQrMessage("Por favor, selecione um seminário.")
+      setQrResult("not_found")
+      setIsProcessingQr(false)
       return
     }
 
-    if (!cpfInput && !codigoUidInput) {
-      setCheckMessage("Por favor, insira um CPF ou Código UID.")
-      setCheckResult("not_found")
-      setIsChecking(false)
+    if (!codigoUidQr) {
+      setQrMessage("Por favor, escaneie o QR Code.")
+      setQrResult("not_found")
+      setIsProcessingQr(false)
+      return
+    }
+
+    try {
+      const response = await fetch("/api/verificar-presenca", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          seminarioId: selectedSeminarId,
+          codigoUid: codigoUidQr,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        if (data.alreadyConfirmed) {
+          setQrResult("already_confirmed")
+        } else {
+          setQrResult("confirmed")
+          // Atualiza a lista de inscrições
+          setSeminarInscricoes((prev) =>
+            prev.map((inscricao) =>
+              inscricao.codigo_uid === codigoUidQr ? { ...inscricao, confirmacao_presenca: true } : inscricao,
+            ),
+          )
+        }
+        setQrMessage(data.message)
+        setCodigoUidQr("")
+
+        // Retorna o foco para o campo de QR Code
+        setTimeout(() => {
+          const qrCodeInput = document.getElementById("codigo-uid-qr")
+          if (qrCodeInput) {
+            qrCodeInput.focus()
+          }
+        }, 500)
+      } else {
+        setQrResult("not_found")
+        setQrMessage(data.message || "QR Code não encontrado para este seminário.")
+      }
+    } catch (error) {
+      console.error("Erro ao confirmar presença:", error)
+      setQrResult("not_found")
+      setQrMessage("Erro ao conectar com o servidor. Tente novamente.")
+    } finally {
+      setIsProcessingQr(false)
+    }
+  }
+
+  // Função para verificar inscrição por CPF
+  const handleVerificarCpf = async () => {
+    setCpfResult(null)
+    setCpfMessage(null)
+    setIsProcessingCpf(true)
+    setShowCpfConfirmation(false)
+
+    if (!selectedSeminarId) {
+      setCpfMessage("Por favor, selecione um seminário.")
+      setCpfResult("not_found")
+      setIsProcessingCpf(false)
+      return
+    }
+
+    if (!cpfInput) {
+      setCpfMessage("Por favor, insira o CPF.")
+      setCpfResult("not_found")
+      setIsProcessingCpf(false)
       return
     }
 
@@ -128,178 +200,400 @@ export default function CredenciamentoPage() {
         body: JSON.stringify({
           seminarioId: selectedSeminarId,
           cpf: cpfInput,
-          codigoUid: codigoUidInput,
         }),
       })
 
       const data = await response.json()
 
       if (response.ok && data.found) {
-        setCheckResult("found")
-        setCheckMessage(data.message) // A API agora retorna a mensagem formatada
+        setCpfResult("found")
+        setCpfMessage(`Inscrição encontrada: ${data.message}`)
+        setShowCpfConfirmation(true)
+        setFoundInscricao(data)
       } else {
-        setCheckResult("not_found")
-        setCheckMessage(data.message || "Inscrição não encontrada para este seminário com os dados fornecidos.")
+        setCpfResult("not_found")
+        setCpfMessage(data.message || "CPF não encontrado para este seminário.")
       }
     } catch (error) {
-      console.error("Erro ao verificar inscrição:", error)
-      setCheckResult("not_found")
-      setCheckMessage("Erro ao conectar com o servidor. Tente novamente.")
+      console.error("Erro ao verificar CPF:", error)
+      setCpfResult("not_found")
+      setCpfMessage("Erro ao conectar com o servidor. Tente novamente.")
     } finally {
-      setIsChecking(false)
+      setIsProcessingCpf(false)
     }
   }
 
+  // Função para confirmar presença por CPF
+  const handleConfirmarPresencaCpf = async () => {
+    setIsProcessingCpf(true)
+
+    try {
+      // Buscar o código UID pelo CPF primeiro
+      const inscricao = seminarInscricoes.find((i) => i.codigo_uid && cpfInput)
+
+      if (!inscricao?.codigo_uid) {
+        setCpfMessage("Não foi possível encontrar o código UID para este CPF.")
+        setCpfResult("not_found")
+        setIsProcessingCpf(false)
+        return
+      }
+
+      const response = await fetch("/api/verificar-presenca", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          seminarioId: selectedSeminarId,
+          codigoUid: inscricao.codigo_uid,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        if (data.alreadyConfirmed) {
+          setCpfResult("already_confirmed")
+        } else {
+          setCpfResult("confirmed")
+          // Atualiza a lista de inscrições
+          setSeminarInscricoes((prev) =>
+            prev.map((insc) =>
+              insc.codigo_uid === inscricao.codigo_uid ? { ...insc, confirmacao_presenca: true } : insc,
+            ),
+          )
+        }
+        setCpfMessage(data.message)
+        setCpfInput("")
+        setShowCpfConfirmation(false)
+      } else {
+        setCpfResult("not_found")
+        setCpfMessage(data.message || "Erro ao confirmar presença.")
+      }
+    } catch (error) {
+      console.error("Erro ao confirmar presença:", error)
+      setCpfResult("not_found")
+      setCpfMessage("Erro ao conectar com o servidor. Tente novamente.")
+    } finally {
+      setIsProcessingCpf(false)
+    }
+  }
+
+  // Manter foco no campo QR Code
+  useEffect(() => {
+    if (!isProcessingQr && selectedSeminarId) {
+      const qrCodeInput = document.getElementById("codigo-uid-qr")
+      if (qrCodeInput && document.activeElement !== qrCodeInput) {
+        qrCodeInput.focus()
+      }
+    }
+  }, [isProcessingQr, selectedSeminarId, qrResult])
+
+  // Calcular estatísticas
+  const totalInscritos = seminarInscricoes.length
+  const presencasConfirmadas = seminarInscricoes.filter((i) => i.confirmacao_presenca).length
+
   return (
-    <div className="container mx-auto py-8 px-4 bg-gray-50 min-h-screen">
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">Verificação de Credenciamento</CardTitle>
+    <div className="container mx-auto py-8 px-4 bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">Sistema de Credenciamento<br></br> <i>Code Sync Tecnologias</i></h1>
+      </div>
+
+      {/* Seleção do Seminário */}
+      <Card className="mb-8 shadow-lg border-0">
+        <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+          <CardTitle className="text-xl font-bold">Selecionar Seminário</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <label htmlFor="seminario-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Selecione o Seminário
-            </label>
-            <Select onValueChange={setSelectedSeminarId} value={selectedSeminarId || ""}>
-              <SelectTrigger id="seminario-select" className="w-full">
-                <SelectValue placeholder="Escolha um seminário" />
-              </SelectTrigger>
-              <SelectContent>
-                {seminarios.map((seminario) => (
-                  <SelectItem key={seminario.id} value={seminario.id.toString()}>
-                    {seminario.estado} - {seminario.municipio} (
-                    {seminario.data_inicio ? new Date(seminario.data_inicio).toLocaleDateString() : "Sem data"}) -{" "}
-                    {seminario.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <CardContent className="p-6">
+          <Select onValueChange={setSelectedSeminarId} value={selectedSeminarId || ""}>
+            <SelectTrigger className="w-full h-12 text-lg">
+              <SelectValue placeholder="Escolha um seminário para iniciar o credenciamento" />
+            </SelectTrigger>
+            <SelectContent>
+              {seminarios.map((seminario) => (
+                <SelectItem key={seminario.id} value={seminario.id.toString()}>
+                  <div className="flex flex-col">
+                    <span className="font-semibold">{seminario.title}</span>
+                    <span className="text-sm text-gray-500">
+                      {seminario.estado} - {seminario.municipio} •{" "}
+                      {seminario.data_inicio ? new Date(seminario.data_inicio).toLocaleDateString() : "Sem data"}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="cpf-input" className="block text-sm font-medium text-gray-700 mb-2">
-                CPF do Inscrito
-              </label>
-              <Input
-                id="cpf-input"
-                placeholder="Digite o CPF"
-                value={cpfInput}
-                onChange={(e) => {
-                  setCpfInput(e.target.value)
-                  setCodigoUidInput("") // Limpa o outro campo
-                  setCheckResult(null)
-                  setCheckMessage(null)
-                }}
-                disabled={isChecking}
-              />
-            </div>
-            <div>
-              <label htmlFor="codigo-uid-input" className="block text-sm font-medium text-gray-700 mb-2">
-                Código UID do Inscrito
-              </label>
-              <Input
-                id="codigo-uid-input"
-                placeholder="Digite o Código UID"
-                value={codigoUidInput}
-                onChange={(e) => {
-                  setCodigoUidInput(e.target.value)
-                  setCpfInput("") // Limpa o outro campo
-                  setCheckResult(null)
-                  setCheckMessage(null)
-                }}
-                disabled={isChecking}
-              />
-            </div>
-          </div>
+      {selectedSeminarId && (
+        <>
+          {/* Métodos de Credenciamento */}
+          <Card className="mb-8 shadow-lg border-0">
+            <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
+              <CardTitle className="text-xl font-bold">Credenciamento</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <Tabs defaultValue="qrcode" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="qrcode" className="flex items-center gap-2 text-lg py-3">
+                    <QrCodeIcon className="h-5 w-5" />
+                    QR Code
+                  </TabsTrigger>
+                  <TabsTrigger value="cpf" className="flex items-center gap-2 text-lg py-3">
+                    <UserIcon className="h-5 w-5" />
+                    CPF
+                  </TabsTrigger>
+                </TabsList>
 
-          <Button
-            onClick={handleCheckInscricao}
-            className="w-full"
-            disabled={isChecking || (!cpfInput && !codigoUidInput) || !selectedSeminarId}
-          >
-            {isChecking ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verificando...
-              </>
-            ) : (
-              "Verificar Inscrição"
-            )}
-          </Button>
+                {/* Tab QR Code */}
+                <TabsContent value="qrcode" className="space-y-6">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <QrCodeIcon className="h-5 w-5 text-green-600" />
+                      <h3 className="font-semibold text-green-800">Método Principal - QR Code</h3>
+                    </div>
+                    <p className="text-green-700 text-sm">
+                      Escaneie o QR Code do comprovante de inscrição para confirmação automática da presença.
+                    </p>
+                  </div>
 
-          {checkResult && (
-            <div
-              className={`flex items-center justify-center p-4 rounded-md text-lg font-semibold ${
-                checkResult === "found" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-              }`}
-            >
-              {checkResult === "found" ? (
-                <CheckCircleIcon className="h-6 w-6 mr-2" />
+                  <div>
+                    <label htmlFor="codigo-uid-qr" className="block text-sm font-medium text-gray-700 mb-2">
+                      Código do QR Code
+                    </label>
+                    <Input
+                      id="codigo-uid-qr"
+                      placeholder="Escaneie o QR Code aqui..."
+                      value={codigoUidQr}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setCodigoUidQr(value)
+                        setQrResult(null)
+                        setQrMessage(null)
+
+                        // Detecção automática de Enter do leitor
+                        if (value.includes("\n") || value.includes("\r")) {
+                          const cleanValue = value.replace(/[\n\r]/g, "").trim()
+                          setCodigoUidQr(cleanValue)
+
+                          if (cleanValue && selectedSeminarId && !isProcessingQr) {
+                            setTimeout(() => {
+                              handleConfirmarPresencaQr()
+                            }, 100)
+                          }
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && codigoUidQr && selectedSeminarId && !isProcessingQr) {
+                          handleConfirmarPresencaQr()
+                        }
+                      }}
+                      disabled={isProcessingQr}
+                      autoFocus
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="h-12 text-lg"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleConfirmarPresencaQr}
+                    className="w-full h-12 text-lg bg-green-600 hover:bg-green-700"
+                    disabled={isProcessingQr || !codigoUidQr || !selectedSeminarId}
+                  >
+                    {isProcessingQr ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processando...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="mr-2 h-5 w-5" />
+                        Confirmar Presença
+                      </>
+                    )}
+                  </Button>
+
+                  {qrResult && (
+                    <div
+                      className={`flex items-center justify-center p-4 rounded-lg text-lg font-semibold ${qrResult === "confirmed"
+                        ? "bg-green-100 text-green-800 border border-green-200"
+                        : qrResult === "already_confirmed"
+                          ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                          : "bg-red-100 text-red-800 border border-red-200"
+                        }`}
+                    >
+                      {qrResult === "confirmed" || qrResult === "already_confirmed" ? (
+                        <CheckCircleIcon className="h-6 w-6 mr-2" />
+                      ) : (
+                        <XCircleIcon className="h-6 w-6 mr-2" />
+                      )}
+                      {qrMessage}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Tab CPF */}
+                <TabsContent value="cpf" className="space-y-6">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircleIcon className="h-5 w-5 text-amber-600" />
+                      <h3 className="font-semibold text-amber-800">Método Alternativo - CPF</h3>
+                    </div>
+                    <p className="text-amber-700 text-sm">
+                      Use apenas quando o participante não trouxer o QR Code. Primeiro verifique a inscrição, depois
+                      confirme a presença.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="cpf-input" className="block text-sm font-medium text-gray-700 mb-2">
+                      CPF do Participante
+                    </label>
+                    <Input
+                      id="cpf-input"
+                      placeholder="Digite o CPF (apenas números)"
+                      value={cpfInput}
+                      onChange={(e) => {
+                        setCpfInput(e.target.value)
+                        setCpfResult(null)
+                        setCpfMessage(null)
+                        setShowCpfConfirmation(false)
+                      }}
+                      disabled={isProcessingCpf}
+                      className="h-12 text-lg"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleVerificarCpf}
+                    className="w-full h-12 text-lg bg-amber-600 hover:bg-amber-700"
+                    disabled={isProcessingCpf || !cpfInput || !selectedSeminarId}
+                  >
+                    {isProcessingCpf ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Verificando...
+                      </>
+                    ) : (
+                      <>
+                        <UserIcon className="mr-2 h-5 w-5" />
+                        Verificar Inscrição
+                      </>
+                    )}
+                  </Button>
+
+                  {cpfResult && (
+                    <div
+                      className={`flex items-center justify-center p-4 rounded-lg text-lg font-semibold ${cpfResult === "found"
+                        ? "bg-blue-100 text-blue-800 border border-blue-200"
+                        : cpfResult === "confirmed"
+                          ? "bg-green-100 text-green-800 border border-green-200"
+                          : cpfResult === "already_confirmed"
+                            ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                            : "bg-red-100 text-red-800 border border-red-200"
+                        }`}
+                    >
+                      {cpfResult === "found" || cpfResult === "confirmed" || cpfResult === "already_confirmed" ? (
+                        <CheckCircleIcon className="h-6 w-6 mr-2" />
+                      ) : (
+                        <XCircleIcon className="h-6 w-6 mr-2" />
+                      )}
+                      {cpfMessage}
+                    </div>
+                  )}
+
+                  {showCpfConfirmation && (
+                    <Button
+                      onClick={handleConfirmarPresencaCpf}
+                      className="w-full h-12 text-lg bg-green-600 hover:bg-green-700"
+                      disabled={isProcessingCpf}
+                    >
+                      {isProcessingCpf ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Confirmando...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircleIcon className="mr-2 h-5 w-5" />
+                          Confirmar Presença
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Lista de Inscrições */}
+          <Card className="shadow-lg border-0">
+            <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-t-lg">
+              <CardTitle className="text-xl font-bold">
+                Lista de Participantes{" "}
+                {!loadingSeminarInscricoes && !errorSeminarInscricoes && (
+                  <span className="text-purple-100 font-normal">
+                    ({totalInscritos} inscritos • {presencasConfirmadas} presentes)
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              {loadingSeminarInscricoes ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-8 w-8 animate-spin mr-2" />
+                  <p>Carregando participantes...</p>
+                </div>
+              ) : errorSeminarInscricoes ? (
+                <div className="flex items-center justify-center h-40 text-red-500">
+                  <XCircleIcon className="h-8 w-8 mr-2" />
+                  <p>Erro ao carregar participantes: {errorSeminarInscricoes}</p>
+                </div>
+              ) : seminarInscricoes.length === 0 ? (
+                <div className="flex items-center justify-center h-40 text-gray-500">
+                  <AlertCircleIcon className="h-8 w-8 mr-2" />
+                  <p>Nenhum participante encontrado para este seminário.</p>
+                </div>
               ) : (
-                <XCircleIcon className="h-6 w-6 mr-2" />
+                <ScrollArea className="h-[500px] w-full rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="font-semibold">Nome Completo</TableHead>
+                        <TableHead className="font-semibold">Divisão</TableHead>
+                        <TableHead className="font-semibold">Data Inscrição</TableHead>
+                        <TableHead className="font-semibold text-center">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {seminarInscricoes.map((inscricao) => (
+                        <TableRow key={inscricao.id} className="hover:bg-gray-50">
+                          <TableCell className="font-medium">{inscricao.nome_completo}</TableCell>
+                          <TableCell>{inscricao.divisao}</TableCell>
+                          <TableCell>
+                            {inscricao.data_inscricao ? new Date(inscricao.data_inscricao).toLocaleDateString() : "N/A"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge
+                              variant={inscricao.confirmacao_presenca ? "default" : "secondary"}
+                              className={`${inscricao.confirmacao_presenca
+                                ? "bg-green-500 hover:bg-green-600"
+                                : "bg-gray-400 hover:bg-gray-500"
+                                } text-white font-semibold px-3 py-1`}
+                            >
+                              {inscricao.confirmacao_presenca ? "✓ Presente" : "○ Ausente"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
               )}
-              {checkMessage}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Seção de Inscrições do Seminário Selecionado (sempre visível) */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">
-            Inscrições do Seminário Selecionado{" "}
-            {selectedSeminarId && !loadingSeminarInscricoes && !errorSeminarInscricoes && (
-              <span className="text-base text-gray-500">({seminarInscricoes.length} inscritos)</span>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!selectedSeminarId ? (
-            <p className="mb-4 text-muted-foreground text-center py-4">
-              Por favor, selecione um seminário para ver as inscrições.
-            </p>
-          ) : loadingSeminarInscricoes ? (
-            <div className="flex items-center justify-center h-40">
-              <p>Carregando inscrições...</p>
-            </div>
-          ) : errorSeminarInscricoes ? (
-            <div className="flex items-center justify-center h-40 text-red-500">
-              <p>Erro ao carregar inscrições: {errorSeminarInscricoes}</p>
-            </div>
-          ) : seminarInscricoes.length === 0 ? (
-            <p className="mb-4 text-muted-foreground text-center py-4">
-              Nenhuma inscrição encontrada para este seminário.
-            </p>
-          ) : (
-            <ScrollArea className="h-[600px] w-full rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código UID</TableHead>
-                    <TableHead>Nome Completo</TableHead>
-                    <TableHead>Data Inscrição</TableHead>
-                    <TableHead>Divisão</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {seminarInscricoes.map((inscricao) => (
-                    <TableRow key={inscricao.id}>
-                      <TableCell className="font-medium">{inscricao.codigo_uid}</TableCell>
-                      <TableCell>{inscricao.nome_completo}</TableCell>
-                      <TableCell>
-                        {inscricao.data_inscricao ? new Date(inscricao.data_inscricao).toLocaleString() : "N/A"}
-                      </TableCell>
-                      <TableCell>{inscricao.divisao}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }
