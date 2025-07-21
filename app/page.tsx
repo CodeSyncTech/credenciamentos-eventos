@@ -34,7 +34,7 @@ const projetos = [
   },
   {
     id: "raizes",
-    nome: "Raízes\u00a0da\u00a0Esperança",
+    nome: "Raízes da\u00a0Esperança",
     descricao: "Projeto de Desenvolvimento Rural e Social.",
     cor: "from-green-600 to-green-800",
     corHover: "from-green-700 to-green-900",
@@ -84,7 +84,7 @@ export default function HomePage() {
   // Tela de seleção de projetos
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex flex-col">
-      <div className="container mx-auto px-4 py-12 flex-1 flex flex-col">
+      <div className="container mx-auto px-2 md:px-4 py-12 flex-1 flex flex-col">
         {/* Header com Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
@@ -99,10 +99,8 @@ export default function HomePage() {
               />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3 font-display">Sistema de Credenciamento</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed font-sans">
-            Selecione o projeto para iniciar o processo de credenciamento dos participantes
-          </p>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3 font-display break-words max-w-full text-ellipsis">Sistema de Credenciamento</h1>
+          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed font-sans break-words max-w-full">Selecione o projeto para iniciar o processo de credenciamento dos participantes</p>
         </div>
 
         {/* Cards de Seleção de Projetos */}
@@ -149,11 +147,11 @@ export default function HomePage() {
                           <IconComponent className="h-8 w-8 text-white" />
                         )}
                       </div>
-                      <CardTitle className="text-2xl font-bold text-center font-display">{projeto.nome}</CardTitle>
+                      <CardTitle className="text-xl md:text-2xl font-bold text-center font-display break-words max-w-full">{projeto.nome}</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent className="p-6 bg-white">
-                    <p className="text-gray-600 text-center mb-6 leading-relaxed font-sans">{projeto.descricao}</p>
+                    <p className="text-gray-600 text-center mb-6 leading-relaxed font-sans text-sm md:text-base break-words max-w-full">{projeto.descricao}</p>
                     {projeto.ativo ? (
                       <Button
                         className={`w-full bg-gradient-to-r ${projeto.id === "proades" ? "from-[#E0A533] to-[#c8942a]" : projeto.cor
@@ -490,21 +488,26 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
         {/* Seleção do Seminário */}
         <Card className="mb-8 shadow-lg border-0">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
-            <CardTitle className="text-xl font-bold">Selecionar Seminário</CardTitle>
+            <CardTitle className="text-xl md:text-2xl font-bold">Selecionar Seminário</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <Select onValueChange={setSelectedSeminarId} value={selectedSeminarId || ""}>
-              <SelectTrigger className="w-full h-12 text-lg">
-                <SelectValue placeholder="Escolha um seminário para iniciar o credenciamento" />
+              <SelectTrigger className="w-full min-h-12 text-base md:text-lg whitespace-normal break-words max-w-full">
+                <SelectValue placeholder="Escolha um seminário para iniciar o credenciamento">
+                  {(selectedSeminarId && seminarios.length > 0) ? (
+                    <div className="w-full text-center break-words whitespace-normal max-w-full">
+                      {seminarios.find(s => s.id.toString() === selectedSeminarId)?.title}
+                    </div>
+                  ) : null}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {seminarios.map((seminario) => (
-                  <SelectItem key={seminario.id} value={seminario.id.toString()}>
-                    <div className="flex flex-col">
-                      <span className="font-semibold">{seminario.title}</span>
-                      <span className="text-sm text-gray-500">
-                        {seminario.estado} - {seminario.municipio} •{" "}
-                        {seminario.data_inicio ? new Date(seminario.data_inicio).toLocaleDateString() : "Sem data"}
+                  <SelectItem key={seminario.id} value={seminario.id.toString()} className="max-w-full">
+                    <div className="flex flex-col max-w-full">
+                      <span className="font-semibold text-base md:text-lg break-words max-w-full text-ellipsis">{seminario.title}</span>
+                      <span className="text-xs md:text-sm text-gray-500 break-words max-w-full text-ellipsis">
+                        {seminario.estado} - {seminario.municipio} • {seminario.data_inicio ? new Date(seminario.data_inicio).toLocaleDateString() : "Sem data"}
                       </span>
                     </div>
                   </SelectItem>
@@ -519,7 +522,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
             {/* Métodos de Credenciamento */}
             <Card className="mb-8 shadow-lg border-0">
               <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
-                <CardTitle className="text-xl font-bold">Credenciamento</CardTitle>
+                <CardTitle className="text-xl md:text-2xl font-bold">Credenciamento</CardTitle>
               </CardHeader>
               <CardContent className="p-6">
                 <Tabs defaultValue="qrcode" className="w-full">
@@ -547,9 +550,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                     </div>
 
                     <div>
-                      <label htmlFor="codigo-uid-qr" className="block text-sm font-medium text-gray-700 mb-2">
-                        Código do QR Code
-                      </label>
+                      <label htmlFor="codigo-uid-qr" className="block text-sm md:text-base font-medium text-gray-700 mb-2">Código do QR Code</label>
                       <Input
                         id="codigo-uid-qr"
                         placeholder="Escaneie o QR Code aqui..."
@@ -559,12 +560,10 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                           setCodigoUidQr(value)
                           setQrResult(null)
                           setQrMessage(null)
-
                           // Detecção automática de Enter do leitor
                           if (value.includes("\n") || value.includes("\r")) {
                             const cleanValue = value.replace(/[\n\r]/g, "").trim()
                             setCodigoUidQr(cleanValue)
-
                             if (cleanValue && selectedSeminarId && !isProcessingQr) {
                               setTimeout(() => {
                                 handleConfirmarPresencaQr()
@@ -581,7 +580,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                         autoFocus
                         autoComplete="off"
                         spellCheck={false}
-                        className="h-12 text-lg"
+                        className="h-12 text-base md:text-lg max-w-full"
                       />
                     </div>
 
@@ -635,9 +634,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                     </div>
 
                     <div>
-                      <label htmlFor="cpf-input" className="block text-sm font-medium text-gray-700 mb-2">
-                        CPF do Participante
-                      </label>
+                      <label htmlFor="cpf-input" className="block text-sm md:text-base font-medium text-gray-700 mb-2">CPF do Participante</label>
                       <Input
                         id="cpf-input"
                         placeholder="Digite o CPF (apenas números)"
@@ -649,7 +646,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                           setShowCpfConfirmation(false)
                         }}
                         disabled={isProcessingCpf}
-                        className="h-12 text-lg"
+                        className="h-12 text-base md:text-lg max-w-full"
                       />
                     </div>
 
@@ -746,29 +743,24 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="font-semibold">Nome Completo</TableHead>
-                          <TableHead className="font-semibold">Divisão</TableHead>
-                          <TableHead className="font-semibold">Data Inscrição</TableHead>
-                          <TableHead className="font-semibold text-center">Status</TableHead>
+                          <TableHead className="font-semibold text-xs md:text-sm break-words max-w-[120px]">Nome Completo</TableHead>
+                          <TableHead className="font-semibold text-xs md:text-sm break-words max-w-[80px]">Divisão</TableHead>
+                          <TableHead className="font-semibold text-xs md:text-sm break-words max-w-[80px]">Data Inscrição</TableHead>
+                          <TableHead className="font-semibold text-xs md:text-sm text-center break-words max-w-[80px]">Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {seminarInscricoes.map((inscricao) => (
                           <TableRow key={inscricao.id} className="hover:bg-gray-50">
-                            <TableCell className="font-medium">{inscricao.nome_completo}</TableCell>
-                            <TableCell>{inscricao.divisao}</TableCell>
-                            <TableCell>
-                              {inscricao.data_inscricao
-                                ? new Date(inscricao.data_inscricao).toLocaleDateString()
-                                : "N/A"}
+                            <TableCell className="font-medium text-xs md:text-sm break-words max-w-[120px]">{inscricao.nome_completo}</TableCell>
+                            <TableCell className="text-xs md:text-sm break-words max-w-[80px]">{inscricao.divisao}</TableCell>
+                            <TableCell className="text-xs md:text-sm break-words max-w-[80px]">
+                              {inscricao.data_inscricao ? new Date(inscricao.data_inscricao).toLocaleDateString() : "N/A"}
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="text-center text-xs md:text-sm">
                               <Badge
                                 variant={inscricao.confirmacao_presenca ? "default" : "secondary"}
-                                className={`${inscricao.confirmacao_presenca
-                                  ? "bg-green-500 hover:bg-green-600"
-                                  : "bg-gray-400 hover:bg-gray-500"
-                                  } text-white font-semibold px-3 py-1`}
+                                className={`${inscricao.confirmacao_presenca ? "bg-green-500 hover:bg-green-600" : "bg-gray-400 hover:bg-gray-500"} text-white font-semibold px-3 py-1 text-xs md:text-sm`}
                               >
                                 {inscricao.confirmacao_presenca ? "✓ Presente" : "○ Ausente"}
                               </Badge>
