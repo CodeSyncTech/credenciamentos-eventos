@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import { ArrowRightIcon, BuildingIcon, TreesIcon, DropletIcon } from "lucide-react"
-import QrScannerCamera from "@/components/QrScannerCamera"
+import Html5QrcodeScanner from "@/components/Html5QrcodeScanner"
 
 // Definição dos projetos disponíveis
 const projetos = [
@@ -560,7 +560,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
 
                       <div>
                         <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Leitor de QR Code pela Câmera</label>
-                        <QrScannerCamera
+                        <Html5QrcodeScanner
                           onDecode={(qrValue) => {
                             if (!scannerPaused && qrValue && selectedSeminarId && !isProcessingQr) {
                               setCodigoUidQr(qrValue)
@@ -570,7 +570,6 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                             }
                           }}
                           onError={(err) => {
-                            // Só mostra erro se não for 'No QR code found'
                             if (err && !err.includes('No QR code found')) {
                               setQrMessage(err)
                               setQrResult("not_found")
