@@ -276,6 +276,8 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
       setQrMessage("Por favor, selecione um seminário.")
       setQrResult("not_found")
       setIsProcessingQr(false)
+      setScannerPaused(true)
+      setTimeout(() => setScannerPaused(false), 4000)
       return
     }
 
@@ -283,6 +285,8 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
       setQrMessage("Por favor, escaneie o QR Code.")
       setQrResult("not_found")
       setIsProcessingQr(false)
+      setScannerPaused(true)
+      setTimeout(() => setScannerPaused(false), 4000)
       return
     }
 
@@ -303,29 +307,34 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
       if (response.ok && data.success) {
         if (data.alreadyConfirmed) {
           setQrResult("already_confirmed")
+          setQrMessage(data.message)
+          setScannerPaused(true)
+          setTimeout(() => setScannerPaused(false), 4000)
         } else {
           setQrResult("confirmed")
-          // Atualiza a lista de inscrições
+          setQrMessage("")
+          // Não pausar scanner nem mostrar mensagem em sucesso normal
           setSeminarInscricoes((prev) =>
             prev.map((inscricao) =>
               inscricao.codigo_uid === codigoUidQr ? { ...inscricao, confirmacao_presenca: true } : inscricao,
             ),
           )
         }
-        setQrMessage(data.message)
         setCodigoUidQr("")
-        // scannerPaused e qrSuccess já são controlados no onDecode
       } else {
-        // QR não encontrado: não mostra erro, não pausa, só limpa para nova leitura
-        setQrResult(null)
-        setQrMessage(null)
+        // QR não encontrado: mostrar erro, pausar scanner
+        setQrResult("not_found")
+        setQrMessage(data.message || "QR Code não encontrado para este seminário.")
+        setScannerPaused(true)
+        setTimeout(() => setScannerPaused(false), 4000)
         setCodigoUidQr("")
-        // scannerPaused permanece false, permitindo nova leitura imediatamente
       }
     } catch (error) {
       console.error("Erro ao confirmar presença:", error)
       setQrResult("not_found")
       setQrMessage("Erro ao conectar com o servidor. Tente novamente.")
+      setScannerPaused(true)
+      setTimeout(() => setScannerPaused(false), 4000)
     } finally {
       setIsProcessingQr(false)
     }
@@ -554,16 +563,9 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                         <QrScannerCamera
                           onDecode={(qrValue) => {
                             if (!scannerPaused && qrValue && selectedSeminarId && !isProcessingQr) {
-                              setScannerPaused(true)
-                              setQrSuccess(true)
                               setCodigoUidQr(qrValue)
                               setTimeout(() => {
                                 handleConfirmarPresencaQr()
-                                // Pausa de 4 segundos após leitura válida
-                                setTimeout(() => {
-                                  setScannerPaused(false)
-                                  setQrSuccess(false)
-                                }, 4000)
                               }, 100)
                             }
                           }}
@@ -572,16 +574,12 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                             if (err && !err.includes('No QR code found')) {
                               setQrMessage(err)
                               setQrResult("not_found")
+                              setScannerPaused(true)
+                              setTimeout(() => setScannerPaused(false), 4000)
                             }
                           }}
                           paused={scannerPaused || isProcessingQr}
                         />
-
-                        {qrSuccess && (
-                          <div className="text-green-700 font-bold my-4">
-                            QR Code lido com sucesso! Aguarde um instante para ler outro.
-                          </div>
-                        )}
 
                         <Button
                           onClick={handleConfirmarPresencaQr}
@@ -603,13 +601,13 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                         {qrResult && (
                           <div
                             className={`flex items-center justify-center p-4 rounded-lg text-lg font-semibold ${qrResult === "confirmed"
-                              ? "bg-green-100 text-green-800 border border-green-200"
+                              ? "hidden"
                               : qrResult === "already_confirmed"
                                 ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
                                 : "bg-red-100 text-red-800 border border-red-200"
                               }`}
                           >
-                            {qrResult === "confirmed" || qrResult === "already_confirmed" ? (
+                            {qrResult === "already_confirmed" ? (
                               <CheckCircleIcon className="h-6 w-6 mr-2" />
                             ) : (
                               <XCircleIcon className="h-6 w-6 mr-2" />
