@@ -212,6 +212,8 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
   const [isProcessingCpf, setIsProcessingCpf] = useState(false)
   const [showCpfConfirmation, setShowCpfConfirmation] = useState(false)
   const [foundInscricao, setFoundInscricao] = useState<any>(null)
+  // Flag para evitar múltiplas confirmações simultâneas
+  const [cpfConfirmando, setCpfConfirmando] = useState(false)
 
   // Estados para lista de inscrições
   const [seminarInscricoes, setSeminarInscricoes] = useState<Inscricao[]>([])
@@ -343,6 +345,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
 
   // Função para verificar inscrição por CPF
   const handleVerificarCpf = async () => {
+    if (cpfConfirmando) return // Bloqueia múltiplas confirmações
     setCpfResult(null)
     setCpfMessage(null)
     setIsProcessingCpf(true)
@@ -378,9 +381,14 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
 
       if (response.ok && data.found) {
         setCpfResult("found")
-        setCpfMessage(`Inscrição encontrada: ${data.message}`)
+        setCpfMessage(`Inscrição encontrada para: ${data.message.replace(/^Inscrição encontrada para: /, "")}`)
         setShowCpfConfirmation(true)
         setFoundInscricao(data)
+        setCpfConfirmando(true)
+        // Automatizar confirmação de presença
+        setTimeout(() => {
+          handleConfirmarPresencaCpf().finally(() => setCpfConfirmando(false))
+        }, 300)
       } else {
         setCpfResult("not_found")
         setCpfMessage(data.message || "CPF não encontrado para este seminário.")
@@ -396,6 +404,8 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
 
   // Função para confirmar presença por CPF
   const handleConfirmarPresencaCpf = async () => {
+    if (cpfConfirmando) return // Bloqueia múltiplas confirmações
+    setCpfConfirmando(true)
     setIsProcessingCpf(true)
 
     try {
@@ -447,6 +457,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
       setCpfMessage("Erro ao conectar com o servidor. Tente novamente.")
     } finally {
       setIsProcessingCpf(false)
+      setCpfConfirmando(false)
     }
   }
 
