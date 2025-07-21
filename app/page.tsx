@@ -202,6 +202,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
   const [qrMessage, setQrMessage] = useState<string | null>(null)
   const [isProcessingQr, setIsProcessingQr] = useState(false)
   const [scannerPaused, setScannerPaused] = useState(false)
+  const [qrSuccess, setQrSuccess] = useState(false)
 
   // Estados para CPF (método alternativo)
   const [cpfInput, setCpfInput] = useState<string>("")
@@ -557,56 +558,68 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                         onDecode={(qrValue) => {
                           if (!scannerPaused && qrValue && selectedSeminarId && !isProcessingQr) {
                             setScannerPaused(true)
+                            setQrSuccess(true)
                             setCodigoUidQr(qrValue)
                             setTimeout(() => {
                               handleConfirmarPresencaQr()
-                              // Libera o scanner após 2 segundos
-                              setTimeout(() => setScannerPaused(false), 2000)
+                              // Pausa de 4 segundos após leitura válida
+                              setTimeout(() => {
+                                setScannerPaused(false)
+                                setQrSuccess(false)
+                              }, 4000)
                             }, 100)
                           }
                         }}
                         onError={(err) => {
-                          setQrMessage(err)
-                          setQrResult("not_found")
+                          // Só mostra erro se não for 'No QR code found'
+                          if (err && !err.includes('No QR code found')) {
+                            setQrMessage(err)
+                            setQrResult("not_found")
+                          }
                         }}
                         paused={scannerPaused || isProcessingQr}
                       />
-                    </div>
 
-                    <Button
-                      onClick={handleConfirmarPresencaQr}
-                      className="w-full h-12 text-lg bg-green-600 hover:bg-green-700"
-                      disabled={isProcessingQr || !codigoUidQr || !selectedSeminarId}
-                    >
-                      {isProcessingQr ? (
-                        <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processando...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircleIcon className="mr-2 h-5 w-5" />
-                          Confirmar Presença
-                        </>
+                      {qrSuccess && (
+                        <div className="text-green-700 font-bold my-4">
+                          QR Code lido com sucesso! Aguarde um instante para ler outro.
+                        </div>
                       )}
-                    </Button>
 
-                    {qrResult && (
-                      <div
-                        className={`flex items-center justify-center p-4 rounded-lg text-lg font-semibold ${qrResult === "confirmed"
-                          ? "bg-green-100 text-green-800 border border-green-200"
-                          : qrResult === "already_confirmed"
-                            ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
-                            : "bg-red-100 text-red-800 border border-red-200"
-                          }`}
+                      <Button
+                        onClick={handleConfirmarPresencaQr}
+                        className="w-full h-12 text-lg bg-green-600 hover:bg-green-700"
+                        disabled={isProcessingQr || !codigoUidQr || !selectedSeminarId}
                       >
-                        {qrResult === "confirmed" || qrResult === "already_confirmed" ? (
-                          <CheckCircleIcon className="h-6 w-6 mr-2" />
+                        {isProcessingQr ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processando...
+                          </>
                         ) : (
-                          <XCircleIcon className="h-6 w-6 mr-2" />
+                          <>
+                            <CheckCircleIcon className="mr-2 h-5 w-5" />
+                            Confirmar Presença
+                          </>
                         )}
-                        {qrMessage}
-                      </div>
-                    )}
+                      </Button>
+
+                      {qrResult && (
+                        <div
+                          className={`flex items-center justify-center p-4 rounded-lg text-lg font-semibold ${qrResult === "confirmed"
+                            ? "bg-green-100 text-green-800 border border-green-200"
+                            : qrResult === "already_confirmed"
+                              ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                              : "bg-red-100 text-red-800 border border-red-200"
+                            }`}
+                        >
+                          {qrResult === "confirmed" || qrResult === "already_confirmed" ? (
+                            <CheckCircleIcon className="h-6 w-6 mr-2" />
+                          ) : (
+                            <XCircleIcon className="h-6 w-6 mr-2" />
+                          )}
+                          {qrMessage}
+                        </div>
+                      )}
                   </TabsContent>
 
                   {/* Tab CPF */}
