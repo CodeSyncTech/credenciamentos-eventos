@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import { ArrowRightIcon, BuildingIcon, TreesIcon, DropletIcon } from "lucide-react"
+import QrScannerCamera from "@/components/QrScannerCamera"
 
 // Definição dos projetos disponíveis
 const projetos = [
@@ -34,7 +35,7 @@ const projetos = [
   },
   {
     id: "raizes",
-    nome: "Raízes da\u00a0Esperança",
+    nome: "Raízes\u00a0da\u00a0Esperança",
     descricao: "Projeto de Desenvolvimento Rural e Social.",
     cor: "from-green-600 to-green-800",
     corHover: "from-green-700 to-green-900",
@@ -147,7 +148,7 @@ export default function HomePage() {
                           <IconComponent className="h-8 w-8 text-white" />
                         )}
                       </div>
-                      <CardTitle className="text-xl md:text-2xl font-bold text-center font-display break-words max-w-full">{projeto.nome}</CardTitle>
+                      <CardTitle className="text-xl md:text-2xl font-bold text-center font-display break-words max-w-full whitespace-nowrap">{projeto.nome}</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent className="p-6 bg-white">
@@ -550,37 +551,21 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                     </div>
 
                     <div>
-                      <label htmlFor="codigo-uid-qr" className="block text-sm md:text-base font-medium text-gray-700 mb-2">Código do QR Code</label>
-                      <Input
-                        id="codigo-uid-qr"
-                        placeholder="Escaneie o QR Code aqui..."
-                        value={codigoUidQr}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          setCodigoUidQr(value)
-                          setQrResult(null)
-                          setQrMessage(null)
-                          // Detecção automática de Enter do leitor
-                          if (value.includes("\n") || value.includes("\r")) {
-                            const cleanValue = value.replace(/[\n\r]/g, "").trim()
-                            setCodigoUidQr(cleanValue)
-                            if (cleanValue && selectedSeminarId && !isProcessingQr) {
-                              setTimeout(() => {
-                                handleConfirmarPresencaQr()
-                              }, 100)
-                            }
+                      <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Leitor de QR Code pela Câmera</label>
+                      <QrScannerCamera
+                        onDecode={(qrValue) => {
+                          if (qrValue && selectedSeminarId && !isProcessingQr) {
+                            setCodigoUidQr(qrValue)
+                            setTimeout(() => {
+                              handleConfirmarPresencaQr()
+                            }, 100)
                           }
                         }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && codigoUidQr && selectedSeminarId && !isProcessingQr) {
-                            handleConfirmarPresencaQr()
-                          }
+                        onError={(err) => {
+                          setQrMessage(err)
+                          setQrResult("not_found")
                         }}
-                        disabled={isProcessingQr}
-                        autoFocus
-                        autoComplete="off"
-                        spellCheck={false}
-                        className="h-12 text-base md:text-lg max-w-full"
+                        paused={isProcessingQr}
                       />
                     </div>
 

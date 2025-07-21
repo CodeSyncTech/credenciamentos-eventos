@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    
     "build": "next build",
     "dev": "next dev --turbopack",
     "lint": "next lint",
@@ -50,9 +49,10 @@
     "next": "15.2.4",
     "next-themes": "^0.4.4",
     "prisma": "latest",
+    "qr-scanner": "^1.4.2",
     "react": "^18.2.0",
     "react-day-picker": "8.10.1",
-    "react-dom": "^18.2.0",   
+    "react-dom": "^18.2.0",
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.0",
