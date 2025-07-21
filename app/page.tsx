@@ -201,6 +201,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
   const [qrResult, setQrResult] = useState<"confirmed" | "already_confirmed" | "not_found" | null>(null)
   const [qrMessage, setQrMessage] = useState<string | null>(null)
   const [isProcessingQr, setIsProcessingQr] = useState(false)
+  const [scannerPaused, setScannerPaused] = useState(false)
 
   // Estados para CPF (método alternativo)
   const [cpfInput, setCpfInput] = useState<string>("")
@@ -554,10 +555,13 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                       <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Leitor de QR Code pela Câmera</label>
                       <QrScannerCamera
                         onDecode={(qrValue) => {
-                          if (qrValue && selectedSeminarId && !isProcessingQr) {
+                          if (!scannerPaused && qrValue && selectedSeminarId && !isProcessingQr) {
+                            setScannerPaused(true)
                             setCodigoUidQr(qrValue)
                             setTimeout(() => {
                               handleConfirmarPresencaQr()
+                              // Libera o scanner após 2 segundos
+                              setTimeout(() => setScannerPaused(false), 2000)
                             }, 100)
                           }
                         }}
@@ -565,7 +569,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                           setQrMessage(err)
                           setQrResult("not_found")
                         }}
-                        paused={isProcessingQr}
+                        paused={scannerPaused || isProcessingQr}
                       />
                     </div>
 
