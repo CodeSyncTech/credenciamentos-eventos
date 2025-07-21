@@ -22,8 +22,8 @@ const Html5QrcodeScanner: React.FC<Html5QrcodeScannerProps> = ({ onDecode, onErr
             html5Qr.start(
                 { facingMode: "environment" },
                 {
-                    fps: 10,
-                    qrbox: { width: 250, height: 250 },
+                    fps: 5,
+                    qrbox: { width: 180, height: 180 },
                 },
                 (decodedText) => {
                     onDecode(decodedText)
