@@ -203,6 +203,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
   const [isProcessingQr, setIsProcessingQr] = useState(false)
   const [scannerPaused, setScannerPaused] = useState(false)
   const [qrSuccess, setQrSuccess] = useState(false)
+  const [tabAtivo, setTabAtivo] = useState("qrcode")
 
   // Estados para CPF (método alternativo)
   const [cpfInput, setCpfInput] = useState<string>("")
@@ -533,7 +534,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                 <CardTitle className="text-xl md:text-2xl font-bold">Credenciamento</CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <Tabs defaultValue="qrcode" className="w-full">
+                <Tabs defaultValue="qrcode" value={tabAtivo} onValueChange={setTabAtivo} className="w-full">
                   <TabsList className="grid w-full grid-cols-2 mb-6">
                     <TabsTrigger value="qrcode" className="flex items-center gap-2 text-lg py-3">
                       <QrCodeIcon className="h-5 w-5" />
@@ -560,25 +561,27 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
 
                       <div>
                         <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Leitor de QR Code pela Câmera</label>
-                        <Html5QrcodeScanner
-                          onDecode={(qrValue) => {
-                            if (!scannerPaused && qrValue && selectedSeminarId && !isProcessingQr) {
-                              setCodigoUidQr(qrValue)
-                              setTimeout(() => {
-                                handleConfirmarPresencaQr()
-                              }, 100)
-                            }
-                          }}
-                          onError={(err) => {
-                            if (err && !err.includes('No QR code found')) {
-                              setQrMessage(err)
-                              setQrResult("not_found")
-                              setScannerPaused(true)
-                              setTimeout(() => setScannerPaused(false), 4000)
-                            }
-                          }}
-                          paused={scannerPaused || isProcessingQr}
-                        />
+                        {tabAtivo === "qrcode" && (
+                          <Html5QrcodeScanner
+                            onDecode={(qrValue) => {
+                              if (!scannerPaused && qrValue && selectedSeminarId && !isProcessingQr) {
+                                setCodigoUidQr(qrValue)
+                                setTimeout(() => {
+                                  handleConfirmarPresencaQr()
+                                }, 100)
+                              }
+                            }}
+                            onError={(err) => {
+                              if (err && !err.includes('No QR code found') && !err.includes('No MultiFormat Readers were able to detect the code')) {
+                                setQrMessage(err)
+                                setQrResult("not_found")
+                                setScannerPaused(true)
+                                setTimeout(() => setScannerPaused(false), 4000)
+                              }
+                            }}
+                            paused={scannerPaused || isProcessingQr}
+                          />
+                        )}
 
                         <Button
                           onClick={handleConfirmarPresencaQr}

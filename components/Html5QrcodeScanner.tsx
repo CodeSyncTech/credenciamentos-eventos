@@ -29,7 +29,12 @@ const Html5QrcodeScanner: React.FC<Html5QrcodeScannerProps> = ({ onDecode, onErr
                     onDecode(decodedText)
                 },
                 (errMsg) => {
-                    if (onError && errMsg && !errMsg.includes("No QR code found")) {
+                    if (
+                        onError &&
+                        errMsg &&
+                        !errMsg.includes("No QR code found") &&
+                        !errMsg.includes("No MultiFormat Readers were able to detect the code")
+                    ) {
                         onError(errMsg)
                     }
                 }
@@ -40,9 +45,14 @@ const Html5QrcodeScanner: React.FC<Html5QrcodeScannerProps> = ({ onDecode, onErr
             scannerRef.current.resume()
         }
         return () => {
-            try { scannerRef.current?.stop() } catch { }
-            try { scannerRef.current?.clear() } catch { }
-            scannerRef.current = null
+            if (scannerRef.current) {
+                try {
+                    scannerRef.current.stop().then(() => {
+                        scannerRef.current?.clear()
+                    }).catch(() => { })
+                } catch { }
+                scannerRef.current = null
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [paused])
