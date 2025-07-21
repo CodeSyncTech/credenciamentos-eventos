@@ -314,17 +314,13 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
         }
         setQrMessage(data.message)
         setCodigoUidQr("")
-
-        // Retorna o foco para o campo de QR Code
-        setTimeout(() => {
-          const qrCodeInput = document.getElementById("codigo-uid-qr")
-          if (qrCodeInput) {
-            qrCodeInput.focus()
-          }
-        }, 500)
+        // scannerPaused e qrSuccess já são controlados no onDecode
       } else {
-        setQrResult("not_found")
-        setQrMessage(data.message || "QR Code não encontrado para este seminário.")
+        // QR não encontrado: não mostra erro, não pausa, só limpa para nova leitura
+        setQrResult(null)
+        setQrMessage(null)
+        setCodigoUidQr("")
+        // scannerPaused permanece false, permitindo nova leitura imediatamente
       }
     } catch (error) {
       console.error("Erro ao confirmar presença:", error)
