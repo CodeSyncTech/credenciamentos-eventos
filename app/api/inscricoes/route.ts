@@ -21,6 +21,7 @@ export async function GET(request: Request) {
         data_inscricao: true,
         divisao: true,
         confirmacao_presenca: true,
+        cpf: true, // Adicionado campo CPF
       },
       orderBy: {
         nome_completo: "asc",

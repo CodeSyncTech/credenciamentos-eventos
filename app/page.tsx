@@ -61,6 +61,7 @@ interface Inscricao {
   nome_completo: string
   divisao: string
   confirmacao_presenca: boolean
+  cpf: string // Adicionado campo CPF
 }
 
 // Definição de tipo para o seminário
@@ -410,7 +411,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
 
     try {
       // Buscar o código UID pelo CPF primeiro
-      const inscricao = seminarInscricoes.find((i) => i.codigo_uid && cpfInput)
+      const inscricao = seminarInscricoes.find((i) => i.cpf === cpfInput)
 
       if (!inscricao?.codigo_uid) {
         setCpfMessage("Não foi possível encontrar o código UID para este CPF.")
