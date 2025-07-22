@@ -50,7 +50,8 @@ export async function POST(request: Request) {
         }
 
         if (cpf) {
-            whereClause.cpf = cpf
+            // Sanitiza o CPF para conter apenas números
+            whereClause.cpf = cpf.replace(/\D/g, "")
         } else if (codigoUid) {
             whereClause.codigo_uid = codigoUid
         }
