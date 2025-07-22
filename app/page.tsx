@@ -659,6 +659,8 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
                         }}
                         disabled={isProcessingCpf}
                         className="h-12 text-base md:text-lg max-w-full"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                       />
                     </div>
 
