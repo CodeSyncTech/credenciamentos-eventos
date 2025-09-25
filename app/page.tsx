@@ -78,9 +78,34 @@ interface Seminario {
 export default function HomePage() {
   const [projetoSelecionado, setProjetoSelecionado] = useState<string | null>(null)
 
+  // Efeito para restaurar o projeto selecionado do localStorage
+  useEffect(() => {
+    const savedProject = localStorage.getItem('projetoSelecionado')
+    if (savedProject) {
+      setProjetoSelecionado(savedProject)
+    }
+  }, [])
+
+  // Função para selecionar projeto e salvar no localStorage
+  const handleSelectProject = (projetoId: string) => {
+    setProjetoSelecionado(projetoId)
+    localStorage.setItem('projetoSelecionado', projetoId)
+  }
+
+  // Função para voltar e limpar o localStorage
+  const handleVoltar = () => {
+    // Limpar também o seminário selecionado do projeto atual
+    const currentProject = localStorage.getItem('projetoSelecionado')
+    if (currentProject) {
+      localStorage.removeItem(`seminarioSelecionado_${currentProject}`)
+    }
+    setProjetoSelecionado(null)
+    localStorage.removeItem('projetoSelecionado')
+  }
+
   // Se um projeto foi selecionado, mostrar a tela de credenciamento
   if (projetoSelecionado) {
-    return <CredenciamentoPage projeto={projetoSelecionado} onVoltar={() => setProjetoSelecionado(null)} />
+    return <CredenciamentoPage projeto={projetoSelecionado} onVoltar={handleVoltar} />
   }
 
   // Tela de seleção de projetos
@@ -156,6 +181,7 @@ export default function HomePage() {
                     <p className="text-gray-600 text-center mb-6 leading-relaxed font-sans text-sm md:text-base break-words max-w-full">{projeto.descricao}</p>
                     {projeto.ativo ? (
                       <Button
+                        onClick={() => handleSelectProject(projeto.id)}
                         className={`w-full bg-gradient-to-r ${projeto.id === "proades" ? "from-[#E0A533] to-[#c8942a]" : projeto.cor
                           } hover:bg-gradient-to-r ${projeto.id === "proades"
                             ? "hover:from-[#c8942a] hover:to-[#b08322]"
@@ -197,6 +223,14 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
   const [seminarios, setSeminarios] = useState<Seminario[]>([])
   const [selectedSeminarId, setSelectedSeminarId] = useState<string | null>(null)
 
+  // Efeito para restaurar o seminário selecionado do localStorage
+  useEffect(() => {
+    const savedSeminarId = localStorage.getItem(`seminarioSelecionado_${projeto}`)
+    if (savedSeminarId) {
+      setSelectedSeminarId(savedSeminarId)
+    }
+  }, [projeto])
+
   // Estados para QR Code (método principal)
   const [codigoUidQr, setCodigoUidQr] = useState<string>("")
   const [qrResult, setQrResult] = useState<"confirmed" | "already_confirmed" | "not_found" | null>(null)
@@ -220,6 +254,7 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
   const [seminarInscricoes, setSeminarInscricoes] = useState<Inscricao[]>([])
   const [loadingSeminarInscricoes, setLoadingSeminarInscricoes] = useState(false)
   const [errorSeminarInscricoes, setErrorSeminarInscricoes] = useState<string | null>(null)
+  const [refreshingInscricoes, setRefreshingInscricoes] = useState(false)
 
   const projetoAtual = projetos.find((p) => p.id === projeto)
   const IconComponent = projetoAtual?.icon || BuildingIcon
@@ -241,32 +276,39 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
     fetchSeminarios()
   }, [])
 
+  // Função para buscar inscrições do seminário
+  const fetchSeminarInscricoes = async (isRefresh = false) => {
+    if (!selectedSeminarId) {
+      setSeminarInscricoes([])
+      return
+    }
+
+    if (isRefresh) {
+      setRefreshingInscricoes(true)
+    } else {
+      setLoadingSeminarInscricoes(true)
+    }
+    setErrorSeminarInscricoes(null)
+
+    try {
+      const response = await fetch(`/api/inscricoes?seminarioId=${selectedSeminarId}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+      }
+      const data = await response.json()
+      setSeminarInscricoes(data)
+    } catch (e: any) {
+      console.error("Erro ao buscar inscrições do seminário:", e)
+      setErrorSeminarInscricoes(e.message || "Erro ao carregar inscrições do seminário.")
+    } finally {
+      setLoadingSeminarInscricoes(false)
+      setRefreshingInscricoes(false)
+    }
+  }
+
   // Efeito para buscar inscrições do seminário selecionado
   useEffect(() => {
-    async function fetchSeminarInscricoes() {
-      if (!selectedSeminarId) {
-        setSeminarInscricoes([])
-        return
-      }
-
-      setLoadingSeminarInscricoes(true)
-      setErrorSeminarInscricoes(null)
-
-      try {
-        const response = await fetch(`/api/inscricoes?seminarioId=${selectedSeminarId}`)
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
-        }
-        const data = await response.json()
-        setSeminarInscricoes(data)
-      } catch (e: any) {
-        console.error("Erro ao buscar inscrições do seminário:", e)
-        setErrorSeminarInscricoes(e.message || "Erro ao carregar inscrições do seminário.")
-      } finally {
-        setLoadingSeminarInscricoes(false)
-      }
-    }
     fetchSeminarInscricoes()
   }, [selectedSeminarId])
 
@@ -512,7 +554,13 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
             <CardTitle className="text-xl md:text-2xl font-bold">Selecionar Seminário</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <Select onValueChange={setSelectedSeminarId} value={selectedSeminarId || ""}>
+            <Select
+              onValueChange={(value) => {
+                setSelectedSeminarId(value)
+                localStorage.setItem(`seminarioSelecionado_${projeto}`, value)
+              }}
+              value={selectedSeminarId || ""}
+            >
               <SelectTrigger className="w-full min-h-12 text-base md:text-lg whitespace-normal break-words max-w-full">
                 <SelectValue placeholder="Escolha um seminário para iniciar o credenciamento">
                   {(selectedSeminarId && seminarios.length > 0) ? (
@@ -725,17 +773,53 @@ function CredenciamentoPage({ projeto, onVoltar }: { projeto: string; onVoltar: 
               </CardContent>
             </Card>
 
+            {/* Aviso sobre atualização de inscrições */}
+            <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start">
+                <AlertCircleIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1"> Dica de utilização:</p>
+                  <p>
+                    Para inscrições feitas na hora, clique no botão <span className="font-semibold text-orange-600">"Atualizar Lista"</span> para
+                    incluir os novos participantes e em seguida realizar a confirmação de presença no credenciamento pelo CPF ou QrCode.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Lista de Inscrições */}
             <Card className="shadow-lg border-0">
               <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-t-lg">
-                <CardTitle className="text-xl font-bold">
-                  Lista de Participantes{" "}
-                  {!loadingSeminarInscricoes && !errorSeminarInscricoes && (
-                    <span className="text-purple-100 font-normal">
-                      ({totalInscritos} inscritos • {presencasConfirmadas} presentes)
-                    </span>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-xl font-bold">
+                    Lista de Participantes{" "}
+                    {!loadingSeminarInscricoes && !errorSeminarInscricoes && (
+                      <span className="text-purple-100 font-normal">
+                        ({totalInscritos} inscritos • {presencasConfirmadas} presentes)
+                      </span>
+                    )}
+                  </CardTitle>
+                  {selectedSeminarId && (
+                    <Button
+                      onClick={() => fetchSeminarInscricoes(true)}
+                      disabled={refreshingInscricoes || loadingSeminarInscricoes}
+                      size="sm"
+                      className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                    >
+                      {refreshingInscricoes ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Atualizando...
+                        </>
+                      ) : (
+                        <>
+                          <ArrowRightIcon className="mr-2 h-4 w-4" />
+                          Atualizar Lista
+                        </>
+                      )}
+                    </Button>
                   )}
-                </CardTitle>
+                </div>
               </CardHeader>
               <CardContent className="p-6">
                 {loadingSeminarInscricoes ? (
